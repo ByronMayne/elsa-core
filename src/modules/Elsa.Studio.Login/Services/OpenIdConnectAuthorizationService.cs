@@ -58,6 +58,16 @@ public class OpenIdConnectAuthorizationService(IJwtAccessor jwtAccessor, IOption
         // Send request.
         var response = await httpClient.SendAsync(refreshRequestMessage, cancellationToken);
 
+        // Check if the response indicates success. If not, handle the error appropriately. If not handled 
+        // this will result in a infinit loop of failed token requests and redirects to the authorization server, which is not desirable.
+        if (!response.IsSuccessStatusCode)
+        {
+            // Handle error response, e.g., log the error, show a message to the user, etc.
+            // For demonstration, we'll just throw an exception with the response content.
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException($"OIDC Token request failed with status code {response.StatusCode}\nEndpoint: {config.TokenEndpoint} \n: Error: {errorContent}");
+        }
+
         var tokens = (await response.Content.ReadFromJsonAsync<TokenResponse>(cancellationToken))!;
 
         await jwtAccessor.WriteTokenAsync(TokenNames.RefreshToken, tokens.RefreshToken ?? "");
